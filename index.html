@@ -3,19 +3,81 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Group Project Site</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <title>NSUK GPS Attendance Portal</title>
+    <style>
+        body { font-family: 'Times New Roman', serif; text-align: center; padding: 20px; background: #eef2f3; }
+      .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.2); max-width: 450px; margin: auto; }
+        input { width: 90%; padding: 12px; margin: 15px 0; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
+        button { background: #007bff; color: white; border: none; padding: 15px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; font-size: 18px; }
+        #status { margin-top: 20px; font-weight: bold; font-size: 14px; padding: 10px; border-radius: 5px; }
+      .error { color: #721c24; background: #f8d7da; border: 1px solid #f5c6cb; }
+      .success { color: #155724; background: #d4edda; border: 1px solid #c3e6cb; }
+    </style>
 </head>
-<body class="bg-light">
-    <div class="container mt-5">
-        <h1 class="text-center">Group Project Dashboard</h1>
-        <p class="text-muted text-center">Built with GitHub Pages</p>
-        
-        <div class="card p-4 shadow-sm">
-            <h3>Project Data</h3>
-            <!-- If you want to show your Google Sheet data, you can embed it here -->
-            <iframe src="YOUR_GOOGLE_SHEET_PUBLISH_URL" width="100%" height="500"></iframe>
-        </div>
+<body>
+    <div class="container">
+        <h2 style="color: #004085;">Attendance Check-in</h2>
+        <p style="font-style: italic;">NS-CSC 219 Project - NSUK</p>
+        <input type="text" id="studentId" placeholder="Enter Matric/ID (e.g. FT24cmp0140)" required>
+        <button onclick="getLocation()">Verify Location & Sign In</button>
+        <div id="status">Waiting for input...</div>
     </div>
+
+    <script>
+        const targetLat = 8.841237; 
+        const targetLon = 7.908366; 
+        const radius = 0.0005; // ~50 meters geofence
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbwKsvhAX9f1Abr5ELmC3AG9Ra3sxN_Lb1U-aT29xrFArjk9Qxk7RtFAV75TnlMi-BAmfA/exec'; 
+
+        function getLocation() {
+            const status = document.getElementById("status");
+            const studentId = document.getElementById("studentId").value.trim();
+            if (!studentId) { status.className = "error"; status.innerHTML = "Error: Please enter your Student ID."; return; }
+            status.className = ""; status.innerHTML = "📡 Accessing GPS Hardware...";
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => checkGeofence(position, studentId),
+                    (error) => { status.className = "error"; status.innerHTML = "GPS Error: " + error.message; },
+                    { enableHighAccuracy: true } 
+                );
+            }
+        }
+
+        function checkGeofence(position, studentId) {
+            const status = document.getElementById("status");
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;
+            const isInside = Math.abs(lat - targetLat) < radius && Math.abs(lon - targetLon) < radius;
+            if (isInside) {
+                status.innerHTML = "✅ Location Verified. Syncing to Cloud...";
+                sendToSheets(studentId, lat, lon);
+            } else {
+                status.className = "error";
+                status.innerHTML = ❌ Access Denied. You are outside the classroom.;
+            }
+        }
+
+        function sendToSheets(studentId, lat, lon) {
+            const status = document.getElementById("status");
+            fetch(scriptURL, {
+                method: 'POST',
+                body: JSON.stringify({ studentId: studentId, lat: lat, lon: lon })
+            })
+          .then(res => res.json())
+          .then(data => {
+                if (data.result === 'success') {
+                    status.className = "success";
+                    status.innerHTML = "🎉 Success! Attendance Recorded.";
+                } else {
+                    status.className = "error";
+                    status.innerHTML = "Database Error: " + data.error;
+                }
+            })
+          .catch(err => {
+                status.className = "error";
+                status.innerHTML = "Network Error: Could not reach server.";
+            });
+        }
+    </script>
 </body>
 </html>
