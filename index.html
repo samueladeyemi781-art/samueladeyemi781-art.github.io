@@ -3,79 +3,78 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NSUK GPS Attendance Portal</title>
+    <title>NSUK Attendance Portal</title>
     <style>
-        body { font-family: 'Times New Roman', serif; text-align: center; padding: 20px; background: #eef2f3; }
-      .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.2); max-width: 450px; margin: auto; }
-        input { width: 90%; padding: 12px; margin: 15px 0; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
-        button { background: #007bff; color: white; border: none; padding: 15px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; font-size: 18px; }
-        #status { margin-top: 20px; font-weight: bold; font-size: 14px; padding: 10px; border-radius: 5px; }
-      .error { color: #721c24; background: #f8d7da; border: 1px solid #f5c6cb; }
-      .success { color: #155724; background: #d4edda; border: 1px solid #c3e6cb; }
+        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background: #f4f7f6; }
+       .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
+        input { width: 90%; padding: 12px; margin: 15px 0; border: 1px solid #ddd; border-radius: 6px; }
+        button { background: #007bff; color: white; border: none; padding: 14px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; }
+        #status { margin-top: 20px; font-weight: bold; padding: 10px; border-radius: 4px; }
+       .error { color: #721c24; background: #f8d7da; }
+       .success { color: #155724; background: #d4edda; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2 style="color: #004085;">Attendance Check-in</h2>
-        <p style="font-style: italic;">NS-CSC 219 Project - NSUK</p>
-        <input type="text" id="studentId" placeholder="Enter Matric/ID (e.g. FT24cmp0140)" required>
-        <button onclick="getLocation()">Verify Location & Sign In</button>
+        <h2 style="color: #0056b3;">Attendance Check-in</h2>
+        <p>NS-CSC 219 - Computer Science</p>
+        <input type="text" id="studentId" placeholder="Enter Matric Number" required>
+        <button onclick="getLocation()">Verify & Sign In</button>
         <div id="status">Waiting for input...</div>
     </div>
 
     <script>
         const targetLat = 8.841237; 
         const targetLon = 7.908366; 
-        const radius = 0.0005; // ~50 meters geofence
-        const scriptURL =  'https://script.google.com/macros/s/AKfycbwu7FGxBivmHNAbvOTb1NtwSi444QDuxYJd8BKWmFJD9C3CEszR4FigK_dRBzfSZiORZQ/exec';
+        const radius = 0.0005; 
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbwu7FGxBivmHNAbvOTb1NtwSi444QDuxYJd8BKWmFJD9C3CEszR4FigK_dRBzfSZiORZQ/exec';
 
         function getLocation() {
-            const status = document.getElementById("status");
+            const statusBox = document.getElementById("status");
             const studentId = document.getElementById("studentId").value.trim();
-            if (!studentId) { status.className = "error"; status.innerHTML = "Error: Please enter your Student ID."; return; }
-            status.className = ""; status.innerHTML = "📡 Accessing GPS Hardware...";
+
+            if (!studentId) {
+                statusBox.className = "error";
+                statusBox.innerHTML = "Please enter your Matric Number.";
+                return;
+            }
+
+            statusBox.className = "";
+            statusBox.innerHTML = "📡 Accessing GPS...";
+
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
-                    (position) => checkGeofence(position, studentId),
-                    (error) => { status.className = "error"; status.innerHTML = "GPS Error: " + error.message; },
-                    { enableHighAccuracy: true } 
+                    (position) => {
+                        const lat = position.coords.latitude;
+                        const lon = position.coords.longitude;
+                        const isInside = Math.abs(lat - targetLat) < radius && Math.abs(lon - targetLon) < radius;
+
+                        if (isInside) {
+                            statusBox.innerHTML = "✅ Location Valid. Saving...";
+                            sendData(studentId, lat, lon);
+                        } else {
+                            statusBox.className = "error";
+                            statusBox.innerHTML = "❌ Denied: You are not in the classroom.";
+                        }
+                    },
+                    (err) => { statusBox.className = "error"; statusBox.innerHTML = "GPS Error: " + err.message; },
+                    { enableHighAccuracy: true }
                 );
             }
         }
 
-        function checkGeofence(position, studentId) {
-            const status = document.getElementById("status");
-            const lat = position.coords.latitude;
-            const lon = position.coords.longitude;
-            const isInside = Math.abs(lat - targetLat) < radius && Math.abs(lon - targetLon) < radius;
-            if (isInside) {
-                status.innerHTML = "✅ Location Verified. Syncing to Cloud...";
-                sendToSheets(studentId, lat, lon);
-            } else {
-                status.className = "error";
-                status.innerHTML = ❌ Access Denied. You are outside the classroom.;
-            }
-        }
-
-        function sendToSheets(studentId, lat, lon) {
-            const status = document.getElementById("status");
+        function sendData(id, lt, ln) {
+            const statusBox = document.getElementById("status");
             fetch(scriptURL, {
                 method: 'POST',
-                body: JSON.stringify({ studentId: studentId, lat: lat, lon: lon })
-            })
-          .then(res => res.json())
-          .then(data => {
-                if (data.result === 'success') {
-                    status.className = "success";
-                    status.innerHTML = "🎉 Success! Attendance Recorded.";
-                } else {
-                    status.className = "error";
-                    status.innerHTML = "Database Error: " + data.error;
-                }
-            })
-          .catch(err => {
-                status.className = "error";
-                status.innerHTML = "Network Error: Could not reach server.";
+                mode: 'no-cors', // Bypasses CORS issues for Google Scripts
+                body: JSON.stringify({ studentId: id, lat: lt, lon: ln })
+            }).then(() => {
+                statusBox.className = "success";
+                statusBox.innerHTML = "🎉 Success! Attendance Recorded.";
+            }).catch(() => {
+                statusBox.className = "error";
+                statusBox.innerHTML = "Network Error. Check your data.";
             });
         }
     </script>
