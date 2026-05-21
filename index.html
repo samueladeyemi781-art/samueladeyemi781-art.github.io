@@ -3,78 +3,109 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NSUK Attendance Portal</title>
+    <title>NSUK Dynamic GPS Attendance Portal</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; padding: 20px; background: #f4f7f6; }
-       .container { background: white; padding: 30px; border-radius: 12px; box-shadow: 0 5px 15px rgba(0,0,0,0.1); max-width: 400px; margin: auto; }
-        input { width: 90%; padding: 12px; margin: 15px 0; border: 1px solid #ddd; border-radius: 6px; }
-        button { background: #007bff; color: white; border: none; padding: 14px; border-radius: 6px; cursor: pointer; width: 100%; font-weight: bold; }
-        #status { margin-top: 20px; font-weight: bold; padding: 10px; border-radius: 4px; }
-       .error { color: #721c24; background: #f8d7da; }
-       .success { color: #155724; background: #d4edda; }
+        body { font-family: 'Times New Roman', serif; text-align: center; padding: 20px; background: #eef2f3; }
+      .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.2); max-width: 450px; margin: auto; }
+        input, select { width: 90%; padding: 12px; margin: 10px 0; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
+        button { background: #007bff; color: white; border: none; padding: 15px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; font-size: 18px; margin-top: 15px; }
+        #status { margin-top: 20px; font-weight: bold; font-size: 14px; padding: 10px; border-radius: 5px; }
+      .error { color: #721c24; background: #f8d7da; border: 1px solid #f5c6cb; }
+      .success { color: #155724; background: #d4edda; border: 1px solid #c3e6cb; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2 style="color: #0056b3;">Attendance Check-in</h2>
-        <p>NS-CSC 219 - Computer Science</p>
+        <h2 style="color: #004085;">NSUK Attendance Portal</h2>
+        <p style="font-style: italic;">Nasarawa State University, Keffi - Computer Science</p>
+        
         <input type="text" id="studentId" placeholder="Enter Matric Number" required>
-        <button onclick="getLocation()">Verify & Sign In</button>
+        
+        <select id="courseSelect" required>
+            <option value="">-- Select Course --</option>
+            <option value="CSC219">NS-CSC 219 (Software Lab - E-Library)</option>
+            <option value="CSC211">NS-CSC 211 (Lecture Theatre A)</option>
+            <option value="CSC213">NS-CSC 213 (Science Lecture Hall)</option>
+        </select>
+
+        <button onclick="getLocation()">Verify Location & Sign In</button>
         <div id="status">Waiting for input...</div>
     </div>
 
     <script>
-        const targetLat = 8.841237; 
-        const targetLon = 7.908366; 
-        const radius = 0.0005; 
-        const scriptURL = 'https://script.google.com/macros/s/AKfycbwu7FGxBivmHNAbvOTb1NtwSi444QDuxYJd8BKWmFJD9C3CEszR4FigK_dRBzfSZiORZQ/exec';
+        // MAP DYNAMIC COORDINATES - SOFTWARE LAB SET TO YOUR CURRENT E-LIBRARY COORDINATES
+        const courseGeofences = {
+            "CSC219": { lat: 8.841237, lon: 7.908366, venue: "Software Lab (E-Library, CS Dept)" },
+            "CSC211": { lat: 8.847100, lon: 7.877600, venue: "Lecture Theatre A" },
+            "CSC213": { lat: 8.845500, lon: 7.879000, venue: "Science Lecture Hall" }
+        };
+        const radius = 0.0005; // ~50 meters geofence threshold
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbwBMKPCt6G2GgUNt9noyD_yyeNxWWmj-5Veh0oOeL-pPdPTOvMH6zL1StR6nKpq4wTn-Q/exec'; 
 
         function getLocation() {
             const statusBox = document.getElementById("status");
             const studentId = document.getElementById("studentId").value.trim();
+            const selectedCourse = document.getElementById("courseSelect").value;
 
             if (!studentId) {
                 statusBox.className = "error";
-                statusBox.innerHTML = "Please enter your Matric Number.";
+                statusBox.innerHTML = "Error: Please enter your Matric Number.";
+                return;
+            }
+            if (!selectedCourse) {
+                statusBox.className = "error";
+                statusBox.innerHTML = "Error: Please select a course.";
                 return;
             }
 
             statusBox.className = "";
-            statusBox.innerHTML = "📡 Accessing GPS...";
-
+            statusBox.innerHTML = "📡 Accessing GPS Hardware...";
+            
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
-                    (position) => {
-                        const lat = position.coords.latitude;
-                        const lon = position.coords.longitude;
-                        const isInside = Math.abs(lat - targetLat) < radius && Math.abs(lon - targetLon) < radius;
-
-                        if (isInside) {
-                            statusBox.innerHTML = "✅ Location Valid. Saving...";
-                            sendData(studentId, lat, lon);
-                        } else {
-                            statusBox.className = "error";
-                            statusBox.innerHTML = "❌ Denied: You are not in the classroom.";
-                        }
+                    (position) => checkLocation(position, studentId, selectedCourse),
+                    (error) => { 
+                        statusBox.className = "error";
+                        statusBox.innerHTML = "GPS Error: " + error.message; 
                     },
-                    (err) => { statusBox.className = "error"; statusBox.innerHTML = "GPS Error: " + err.message; },
-                    { enableHighAccuracy: true }
+                    { enableHighAccuracy: true } 
                 );
+            } else {
+                statusBox.innerHTML = "Browser does not support geolocation.";
             }
         }
 
-        function sendData(id, lt, ln) {
+        function checkLocation(position, studentId, courseCode) {
+            const statusBox = document.getElementById("status");
+            const lat = position.coords.latitude;
+            const lon = position.coords.longitude;// Fetch coordinates for the selected course
+            const target = courseGeofences[courseCode];
+
+            // Geofencing Bounding Box Verification
+            const isInside = Math.abs(lat - target.lat) < radius && Math.abs(lon - target.lon) < radius;
+
+            if (isInside) {
+                statusBox.className = "success";
+                statusBox.innerHTML = ✅ Inside ${target.venue}. Saving attendance...;
+                submitAttendance(studentId, courseCode, lat, lon);
+            } else {
+                statusBox.className = "error";
+                statusBox.innerHTML = ❌ Access Denied.<br>You are not physically inside ${target.venue}.;
+            }
+        }
+
+        function submitAttendance(studentId, courseCode, lat, lon) {
             const statusBox = document.getElementById("status");
             fetch(scriptURL, {
                 method: 'POST',
-                mode: 'no-cors', // Bypasses CORS issues for Google Scripts
-                body: JSON.stringify({ studentId: id, lat: lt, lon: ln })
+                mode: 'no-cors',
+                body: JSON.stringify({ studentId: studentId, course: courseCode, lat: lat, lon: lon })
             }).then(() => {
                 statusBox.className = "success";
-                statusBox.innerHTML = "🎉 Success! Attendance Recorded.";
+                statusBox.innerHTML = 🎉 Success! Logged in for ${courseCode}.;
             }).catch(() => {
                 statusBox.className = "error";
-                statusBox.innerHTML = "Network Error. Check your data.";
+                statusBox.innerHTML = "Network Error: Could not connect to database.";
             });
         }
     </script>
