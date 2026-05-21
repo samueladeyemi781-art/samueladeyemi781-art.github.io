@@ -6,12 +6,12 @@
     <title>NSUK GPS Attendance Portal</title>
     <style>
         body { font-family: 'Times New Roman', serif; text-align: center; padding: 20px; background: #eef2f3; }
-     .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.2); max-width: 450px; margin: auto; }
+      .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.2); max-width: 450px; margin: auto; }
         input, select { width: 90%; padding: 12px; margin: 10px 0; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
         button { background: #007bff; color: white; border: none; padding: 15px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; font-size: 18px; margin-top: 15px; }
         #status { margin-top: 20px; font-weight: bold; font-size: 14px; padding: 10px; border-radius: 5px; }
-     .error { color: #721c24; background: #f8d7da; border: 1px solid #f5c6cb; }
-     .success { color: #155724; background: #d4edda; border: 1px solid #c3e6cb; }
+      .error { color: #721c24; background: #f8d7da; border: 1px solid #f5c6cb; }
+      .success { color: #155724; background: #d4edda; border: 1px solid #c3e6cb; }
     </style>
 </head>
 <body>
@@ -34,17 +34,17 @@
     </div>
 
     <script>
-        // GPS GEOLOCATION DICTIONARY FOR EACH VENUE
+        // GPS GEOLOCATION TARGETS FOR EACH VENUE
         const venueGeofences = {
             "E-LIBRARY": { lat: 8.841237, lon: 7.908366, venue: "Computer Science E-Library" },
             "SOFTWARE_LAB": { lat: 8.841544, lon: 7.907032, venue: "Software Laboratory" },
             "MATH211": { lat: 8.847100, lon: 7.877600, venue: "Lecture Theatre 1 (LT1)" },
-            "IFT211": { lat: 8.845385, lon: 7.878386, venue: "Lecture Theatre 2 (LT2)" }
+            "IFT211": { lat: 8.845385, lon: 7.878385, venue: "Lecture Theatre 2 (LT2)" }
         };
         const radius = 0.0005; // ~50 meters geofence radius
 
-        
-        const scriptURL = 'https://script.google.com/macros/s/AKfycbyP6ilcS7yvlV32skd3lcfkaypp7PZMPFz29e5bhVq8qgvgl2yJcakP1WOWHAZMnXTDTQ/exec'; 
+    
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbzE1L7-Mdc3F3XkC7cAx8HV8Z4jB-M7tCVtbB6Kp2HA8DYSuQYUTx1vo_gmM6rdVP5JHA/exec'; 
 
         function getLocation() {
             const statusBox = document.getElementById("status");
@@ -65,25 +65,25 @@
             statusBox.className = "";
             statusBox.innerHTML = "📡 Accessing GPS (Satellite Lock)...";
 
-            // INDOOR GPS FALLBACK MECHANISM:
-            // Prevents the browser from hanging indefinitely when indoors.
+            // INDOOR GPS FALLBACK PROTOCOL
             const highAccuracyOptions = {
                 enableHighAccuracy: true,
-                timeout: 6000, // Wait 6 seconds for high-precision satellite lock
+                timeout: 6000, // Wait 6 seconds for satellite lock
                 maximumAge: 0
             };
 
             if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition((position) => checkGeofence(position, studentId, selectedVenue),
+                navigator.geolocation.getCurrentPosition(
+                    (position) => checkGeofence(position, studentId, selectedVenue),
                     (error) => {
-                        console.warn("High-accuracy satellite lock failed. Falling back to Network Location...", error);
-                        statusBox.innerHTML = "📡 Accessing GPS (Network Triangulation)...";
+                        console.warn("High-accuracy lock failed. Falling back to Network...", error);
+                        statusBox.innerHTML = "📡 Accessing GPS (Network Location)...";
                         
                         navigator.geolocation.getCurrentPosition(
                             (position) => checkGeofence(position, studentId, selectedVenue),
                             (err) => {
                                 statusBox.className = "error";
-                                statusBox.innerHTML = "GPS Error: " + err.message + ". Check phone permissions.";
+                                statusBox.innerHTML = "GPS Error: " + err.message + ". Check permissions.";
                             },
                             { enableHighAccuracy: false, timeout: 10000, maximumAge: 30000 }
                         );
@@ -100,7 +100,6 @@
             const lat = position.coords.latitude;
             const lon = position.coords.longitude;
 
-            // Dynamically retrieve coordinates based on user selection
             const target = venueGeofences[venueKey];
 
             // Bounding Box Geofencing Algorithm
@@ -108,11 +107,11 @@
 
             if (isInside) {
                 statusBox.className = "success";
-                statusBox.innerHTML = ✅ Location Verified inside ${target.venue}. Logging attendance...;
+                statusBox.innerHTML = `✅ Location Verified inside ${target.venue}. Logging...`;
                 submitData(studentId, venueKey, lat, lon);
             } else {
                 statusBox.className = "error";
-                statusBox.innerHTML = ❌ Access Denied.<br>You are not inside ${target.venue}.;
+                statusBox.innerHTML = `❌ Access Denied.<br>You are not inside ${target.venue}.`;
             }
         }
 
@@ -124,7 +123,7 @@
                 body: JSON.stringify({ studentId: studentId, course: courseCode, lat: lat, lon: lon })
             }).then(() => {
                 statusBox.className = "success";
-                statusBox.innerHTML = 🎉 Success! Logged in for ${courseCode}.;
+                statusBox.innerHTML = `🎉 Success! Logged in for ${courseCode}.`;
             }).catch(() => {
                 statusBox.className = "error";
                 statusBox.innerHTML = "Network Error: Could not reach spreadsheet database.";
