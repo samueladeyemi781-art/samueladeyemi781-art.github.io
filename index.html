@@ -3,29 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NSUK Dynamic GPS Attendance Portal</title>
+    <title>NSUK GPS Attendance Portal</title>
     <style>
         body { font-family: 'Times New Roman', serif; text-align: center; padding: 20px; background: #eef2f3; }
-      .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.2); max-width: 450px; margin: auto; }
+     .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.2); max-width: 450px; margin: auto; }
         input, select { width: 90%; padding: 12px; margin: 10px 0; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
         button { background: #007bff; color: white; border: none; padding: 15px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; font-size: 18px; margin-top: 15px; }
         #status { margin-top: 20px; font-weight: bold; font-size: 14px; padding: 10px; border-radius: 5px; }
-      .error { color: #721c24; background: #f8d7da; border: 1px solid #f5c6cb; }
-      .success { color: #155724; background: #d4edda; border: 1px solid #c3e6cb; }
+     .error { color: #721c24; background: #f8d7da; border: 1px solid #f5c6cb; }
+     .success { color: #155724; background: #d4edda; border: 1px solid #c3e6cb; }
     </style>
 </head>
 <body>
     <div class="container">
         <h2 style="color: #004085;">NSUK Attendance Portal</h2>
-        <p style="font-style: italic;">Nasarawa State University, Keffi - Computer Science</p>
+        <p style="font-style: italic;">Department of Computer Science - Keffi</p>
         
         <input type="text" id="studentId" placeholder="Enter Matric Number" required>
         
         <select id="courseSelect" required>
-            <option value="">-- Select Course --</option>
-            <option value="CSC219">NS-CSC 219 (Software Lab - E-Library)</option>
-            <option value="CSC211">NS-CSC 211 (Lecture Theatre A)</option>
-            <option value="CSC213">NS-CSC 213 (Science Lecture Hall)</option>
+            <option value="">-- Select Course / Venue --</option>
+            <option value="E-LIBRARY">CS Department E-Library (Testing Location)</option>
+            <option value="SOFTWARE_LAB">Software Lab (CS Building)</option>
+            <option value="MATH211">LT1 - MATH 211 (Mathematical Methods)</option>
+            <option value="IFT211">LT2 - IFT 211 (Introduction to Info Tech)</option>
         </select>
 
         <button onclick="getLocation()">Verify Location & Sign In</button>
@@ -33,79 +34,100 @@
     </div>
 
     <script>
-        // MAP DYNAMIC COORDINATES - SOFTWARE LAB SET TO YOUR CURRENT E-LIBRARY COORDINATES
-        const courseGeofences = {
-            "CSC219": { lat: 8.841237, lon: 7.908366, venue: "Software Lab (E-Library, CS Dept)" },
-            "CSC211": { lat: 8.847100, lon: 7.877600, venue: "Lecture Theatre A" },
-            "CSC213": { lat: 8.845500, lon: 7.879000, venue: "Science Lecture Hall" }
+        // GPS GEOLOCATION DICTIONARY FOR EACH VENUE
+        const venueGeofences = {
+            "E-LIBRARY": { lat: 8.841237, lon: 7.908366, venue: "Computer Science E-Library" },
+            "SOFTWARE_LAB": { lat: 8.841544, lon: 7.907032, venue: "Software Laboratory" },
+            "MATH211": { lat: 8.847100, lon: 7.877600, venue: "Lecture Theatre 1 (LT1)" },
+            "IFT211": { lat: 8.845385, lon: 7.878386, venue: "Lecture Theatre 2 (LT2)" }
         };
-        const radius = 0.0005; // ~50 meters geofence threshold
-        const scriptURL = 'https://script.google.com/macros/s/AKfycbwBMKPCt6G2GgUNt9noyD_yyeNxWWmj-5Veh0oOeL-pPdPTOvMH6zL1StR6nKpq4wTn-Q/exec'; 
+        const radius = 0.0005; // ~50 meters geofence radius
+
+        
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbyP6ilcS7yvlV32skd3lcfkaypp7PZMPFz29e5bhVq8qgvgl2yJcakP1WOWHAZMnXTDTQ/exec'; 
 
         function getLocation() {
             const statusBox = document.getElementById("status");
             const studentId = document.getElementById("studentId").value.trim();
-            const selectedCourse = document.getElementById("courseSelect").value;
+            const selectedVenue = document.getElementById("courseSelect").value;
 
             if (!studentId) {
                 statusBox.className = "error";
                 statusBox.innerHTML = "Error: Please enter your Matric Number.";
                 return;
             }
-            if (!selectedCourse) {
+            if (!selectedVenue) {
                 statusBox.className = "error";
                 statusBox.innerHTML = "Error: Please select a course.";
                 return;
             }
 
             statusBox.className = "";
-            statusBox.innerHTML = "📡 Accessing GPS Hardware...";
-            
+            statusBox.innerHTML = "📡 Accessing GPS (Satellite Lock)...";
+
+            // INDOOR GPS FALLBACK MECHANISM:
+            // Prevents the browser from hanging indefinitely when indoors.
+            const highAccuracyOptions = {
+                enableHighAccuracy: true,
+                timeout: 6000, // Wait 6 seconds for high-precision satellite lock
+                maximumAge: 0
+            };
+
             if (navigator.geolocation) {
-                navigator.geolocation.getCurrentPosition(
-                    (position) => checkLocation(position, studentId, selectedCourse),
-                    (error) => { 
-                        statusBox.className = "error";
-                        statusBox.innerHTML = "GPS Error: " + error.message; 
+                navigator.geolocation.getCurrentPosition((position) => checkGeofence(position, studentId, selectedVenue),
+                    (error) => {
+                        console.warn("High-accuracy satellite lock failed. Falling back to Network Location...", error);
+                        statusBox.innerHTML = "📡 Accessing GPS (Network Triangulation)...";
+                        
+                        navigator.geolocation.getCurrentPosition(
+                            (position) => checkGeofence(position, studentId, selectedVenue),
+                            (err) => {
+                                statusBox.className = "error";
+                                statusBox.innerHTML = "GPS Error: " + err.message + ". Check phone permissions.";
+                            },
+                            { enableHighAccuracy: false, timeout: 10000, maximumAge: 30000 }
+                        );
                     },
-                    { enableHighAccuracy: true } 
+                    highAccuracyOptions
                 );
             } else {
                 statusBox.innerHTML = "Browser does not support geolocation.";
             }
         }
 
-        function checkLocation(position, studentId, courseCode) {
+        function checkGeofence(position, studentId, venueKey) {
             const statusBox = document.getElementById("status");
             const lat = position.coords.latitude;
-            const lon = position.coords.longitude;// Fetch coordinates for the selected course
-            const target = courseGeofences[courseCode];
+            const lon = position.coords.longitude;
 
-            // Geofencing Bounding Box Verification
+            // Dynamically retrieve coordinates based on user selection
+            const target = venueGeofences[venueKey];
+
+            // Bounding Box Geofencing Algorithm
             const isInside = Math.abs(lat - target.lat) < radius && Math.abs(lon - target.lon) < radius;
 
             if (isInside) {
                 statusBox.className = "success";
-                statusBox.innerHTML = ✅ Inside ${target.venue}. Saving attendance...;
-                submitAttendance(studentId, courseCode, lat, lon);
+                statusBox.innerHTML = ✅ Location Verified inside ${target.venue}. Logging attendance...;
+                submitData(studentId, venueKey, lat, lon);
             } else {
                 statusBox.className = "error";
-                statusBox.innerHTML = ❌ Access Denied.<br>You are not physically inside ${target.venue}.;
+                statusBox.innerHTML = ❌ Access Denied.<br>You are not inside ${target.venue}.;
             }
         }
 
-        function submitAttendance(studentId, courseCode, lat, lon) {
+        function submitData(studentId, courseCode, lat, lon) {
             const statusBox = document.getElementById("status");
             fetch(scriptURL, {
                 method: 'POST',
-                mode: 'no-cors',
+                mode: 'no-cors', // Bypasses CORS browser pre-flight blocks
                 body: JSON.stringify({ studentId: studentId, course: courseCode, lat: lat, lon: lon })
             }).then(() => {
                 statusBox.className = "success";
                 statusBox.innerHTML = 🎉 Success! Logged in for ${courseCode}.;
             }).catch(() => {
                 statusBox.className = "error";
-                statusBox.innerHTML = "Network Error: Could not connect to database.";
+                statusBox.innerHTML = "Network Error: Could not reach spreadsheet database.";
             });
         }
     </script>
