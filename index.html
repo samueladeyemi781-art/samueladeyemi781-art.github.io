@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+  <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -6,12 +6,12 @@
     <title>NSUK GPS Attendance Portal</title>
     <style>
         body { font-family: 'Times New Roman', serif; text-align: center; padding: 20px; background: #eef2f3; }
-      .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.2); max-width: 450px; margin: auto; }
+     .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.2); max-width: 450px; margin: auto; }
         input, select { width: 90%; padding: 12px; margin: 10px 0; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
         button { background: #007bff; color: white; border: none; padding: 15px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; font-size: 18px; margin-top: 15px; }
         #status { margin-top: 20px; font-weight: bold; font-size: 14px; padding: 10px; border-radius: 5px; }
-      .error { color: #721c24; background: #f8d7da; border: 1px solid #f5c6cb; }
-      .success { color: #155724; background: #d4edda; border: 1px solid #c3e6cb; }
+     .error { color: #721c24; background: #f8d7da; border: 1px solid #f5c6cb; }
+     .success { color: #155724; background: #d4edda; border: 1px solid #c3e6cb; }
     </style>
 </head>
 <body>
@@ -43,8 +43,8 @@
         };
         const radius = 0.0005; // ~50 meters geofence radius
 
-    
-        const scriptURL = 'https://script.google.com/macros/s/AKfycbzE1L7-Mdc3F3XkC7cAx8HV8Z4jB-M7tCVtbB6Kp2HA8DYSuQYUTx1vo_gmM6rdVP5JHA/exec'; 
+        // ACTIVE GOOGLE APPS SCRIPT WEB APP URL (MIDDLEWARE ENDPOINT)
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbwu7FGXBiVimHNAbVoTb1NtwS1444QDuxYJd8BKwmFJD9C3CEszR4figK_dRBzfSZiORZQ/exec'; 
 
         function getLocation() {
             const statusBox = document.getElementById("status");
@@ -68,8 +68,8 @@
             // INDOOR GPS FALLBACK PROTOCOL
             const highAccuracyOptions = {
                 enableHighAccuracy: true,
-                timeout: 6000, // Wait 6 seconds for satellite lock
-                maximumAge: 0
+                timeout: 10000,    // 10 seconds for satellite lock
+                maximumAge: 30000  // Accept cached position up to 30 seconds old
             };
 
             if (navigator.geolocation) {
@@ -108,22 +108,28 @@
             if (isInside) {
                 statusBox.className = "success";
                 statusBox.innerHTML = `✅ Location Verified inside ${target.venue}. Logging...`;
-                submitData(studentId, venueKey, lat, lon);
+                submitData(studentId, venueKey, lat, lon, "Present");
             } else {
                 statusBox.className = "error";
-                statusBox.innerHTML = `❌ Access Denied.<br>You are not inside ${target.venue}.`;
+                statusBox.innerHTML = `❌ Access Denied.<br>Outside boundary. Saving entry as Absent.`;
+                submitData(studentId, venueKey, lat, lon, "Absent");
             }
         }
 
-        function submitData(studentId, courseCode, lat, lon) {
+        function submitData(studentId, courseCode, lat, lon, attendanceStatus) {
             const statusBox = document.getElementById("status");
             fetch(scriptURL, {
                 method: 'POST',
                 mode: 'no-cors', // Bypasses CORS browser pre-flight blocks
-                body: JSON.stringify({ studentId: studentId, course: courseCode, lat: lat, lon: lon })
+                body: JSON.stringify({ studentId: studentId, course: courseCode, lat: lat, lon: lon, status: attendanceStatus })
             }).then(() => {
-                statusBox.className = "success";
-                statusBox.innerHTML = `🎉 Success! Logged in for ${courseCode}.`;
+                if (attendanceStatus === "Present") {
+                    statusBox.className = "success";
+                    statusBox.innerHTML = `🎉 Success! Logged in as Present for ${courseCode}.`;
+                } else {
+                    statusBox.className = "error";
+                    statusBox.innerHTML = `❌ Out of Boundary. Saved as Absent for ${courseCode}.`;
+                }
             }).catch(() => {
                 statusBox.className = "error";
                 statusBox.innerHTML = "Network Error: Could not reach spreadsheet database.";
