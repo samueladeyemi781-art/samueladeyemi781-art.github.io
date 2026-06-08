@@ -1,4 +1,4 @@
-  <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -6,12 +6,12 @@
     <title>NSUK GPS Attendance Portal</title>
     <style>
         body { font-family: 'Times New Roman', serif; text-align: center; padding: 20px; background: #eef2f3; }
-     .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.2); max-width: 450px; margin: auto; }
+      .container { background: white; padding: 30px; border-radius: 15px; box-shadow: 0 10px 20px rgba(0,0,0,0.2); max-width: 450px; margin: auto; }
         input, select { width: 90%; padding: 12px; margin: 10px 0; border: 2px solid #ddd; border-radius: 8px; font-size: 16px; }
         button { background: #007bff; color: white; border: none; padding: 15px; border-radius: 8px; cursor: pointer; width: 100%; font-weight: bold; font-size: 18px; margin-top: 15px; }
         #status { margin-top: 20px; font-weight: bold; font-size: 14px; padding: 10px; border-radius: 5px; }
-     .error { color: #721c24; background: #f8d7da; border: 1px solid #f5c6cb; }
-     .success { color: #155724; background: #d4edda; border: 1px solid #c3e6cb; }
+      .error { color: #721c24; background: #f8d7da; border: 1px solid #f5c6cb; }
+      .success { color: #155724; background: #d4edda; border: 1px solid #c3e6cb; }
     </style>
 </head>
 <body>
@@ -42,9 +42,7 @@
             "IFT211": { lat: 8.845385, lon: 7.878385, venue: "Lecture Theatre 2 (LT2)" }
         };
         const radius = 0.0005; // ~50 meters geofence radius
-
-        // ACTIVE GOOGLE APPS SCRIPT WEB APP URL (MIDDLEWARE ENDPOINT)
-        const scriptURL =  'https://script.google.com/macros/s/AKfycbzE1L7-Mdc3F3XkC7cAx8HV8Z4jB-M7tCVtbB6Kp2HA8DYSuQYUTx1vo_gmM6rdVP5JHA/exec'"
+        const scriptURL = 'https://script.google.com/macros/s/AKfycbzE1L7-Mdc3F3XkC7cAx8HV8Z4jB-M7tCVtbB6Kp2HA8DYSuQYUTx1vo_gmM6rdVP5JHA/exec'; 
 
         function getLocation() {
             const statusBox = document.getElementById("status");
@@ -65,7 +63,7 @@
             statusBox.className = "";
             statusBox.innerHTML = "📡 Accessing GPS (Satellite Lock)...";
 
-            // INDOOR GPS FALLBACK PROTOCOL
+            // INDOOR GPS FALLBACK PROTOCOL (Prevents freezing indoors)
             const highAccuracyOptions = {
                 enableHighAccuracy: true,
                 timeout: 10000,    // 10 seconds for satellite lock
